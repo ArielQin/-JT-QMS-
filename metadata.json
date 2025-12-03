@@ -1,0 +1,7 @@
+{
+  "name": "姣恬科技内部质量管理系统",
+  "description": "A comprehensive pharmaceutical quality management and traceability system featuring data entry, inventory management, AI risk analysis, and security auditing.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}
