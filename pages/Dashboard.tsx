@@ -3,7 +3,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, 
   BarChart, Bar, Legend, LabelList, Cell
 } from 'recharts';
-import { Activity, PackageCheck, AlertTriangle, TrendingUp, Calendar, X, ChevronDown } from 'lucide-react';
+import { Activity, PackageCheck, AlertTriangle, TrendingUp, Calendar, X, ChevronDown, User, FileText, ArrowRight } from 'lucide-react';
 
 // Mock Data Generators
 const generateTrendData = (days: number) => {
@@ -48,62 +48,109 @@ const StatCard = ({ title, value, subtext, icon: Icon, color, onClick }: any) =>
   </div>
 );
 
-const DetailModal = ({ isOpen, onClose, title }: any) => {
+// Enhanced Detail Modal with Dynamic Content
+const DetailModal = ({ isOpen, onClose, title, type }: { isOpen: boolean, onClose: () => void, title: string, type: 'prod' | 'inv' | 'qc' | 'risk' }) => {
   if (!isOpen) return null;
+
+  // Generate context-aware mock data without Status and Action columns
+  const getHeaders = () => {
+    switch(type) {
+      case 'prod': return ['生产批号', '产品名称', '计划产量', '完成率', '产线负责人'];
+      case 'inv': return ['药品名称', '规格', '当前库存', '周转天数', '库位'];
+      case 'qc': return ['质检单号', '样品名称', '检测项目', '检测结果', '质检员'];
+      case 'risk': return ['风险ID', '风险源', '涉及批次', '风险等级', '触发时间'];
+      default: return [];
+    }
+  };
+
+  const headers = getHeaders();
+  
+  const generateRowData = (idx: number) => {
+    const randomId = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    if (type === 'prod') {
+      return [
+        `20251012-P${randomId}`,
+        ['复方金银花颗粒', '感冒灵胶囊', '板蓝根冲剂'][idx % 3],
+        `${1000 + idx * 50} 盒`,
+        `${95 + (idx % 5)}%`,
+        ['韦晓敏', '阳泽华'][idx % 2]
+      ];
+    }
+    if (type === 'inv') {
+      return [
+        ['阿莫西林胶囊', '布洛芬缓释', '医用口罩'][idx % 3],
+        ['0.25g*24粒', '0.3g*10粒', '10只/包'][idx % 3],
+        `${5000 - idx * 100}`,
+        `${15 + idx} 天`,
+        `A-0${idx % 9 + 1}`
+      ];
+    }
+    if (type === 'qc') {
+      return [
+        `QC-2025-${randomId}`,
+        ['原料-金银花', '半成品-提取液', '成品-感冒灵'][idx % 3],
+        ['含量测定', '微生物限度', '水分'][idx % 3],
+        '待录入',
+        '尤通'
+      ];
+    }
+    if (type === 'risk') {
+      return [
+        `RISK-${randomId}`,
+        ['环境温度超标', '供应商资质过期', '物流延误'][idx % 3],
+        `Batch-2025-${randomId}`,
+        <span className="text-red-600 font-bold">High</span>,
+        `10-12 14:${10 + idx}`
+      ];
+    }
+    return [];
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm animate-fade-in">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl m-4 overflow-hidden flex flex-col max-h-[80vh]">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl m-4 overflow-hidden flex flex-col max-h-[85vh]">
         <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-          <h3 className="text-lg font-bold text-slate-900">{title} - 数据明细</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+          <div>
+            <h3 className="text-xl font-bold text-slate-900">{title}</h3>
+            <p className="text-sm text-slate-500 mt-1">数据最后更新: 刚刚</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition-colors text-slate-500">
             <X size={24} />
           </button>
         </div>
-        <div className="p-6 overflow-y-auto flex-1">
+        <div className="p-0 overflow-y-auto flex-1">
           <table className="min-w-full divide-y divide-slate-200">
-            <thead className="bg-slate-50 sticky top-0">
+            <thead className="bg-slate-50 sticky top-0 z-10 shadow-sm">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">项目/批次</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">数值</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">趋势</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">责任人</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase">操作</th>
+                {headers.map((h, i) => (
+                  <th key={i} className="px-6 py-4 text-left text-xs font-semibold text-slate-600 uppercase tracking-wider bg-slate-50">
+                    {h}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-slate-200">
-              {Array.from({ length: 12 }).map((_, i) => (
-                <tr key={i} className="hover:bg-slate-50">
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-900">
-                    <div className="flex items-center">
-                        <div className="w-8 h-8 rounded bg-indigo-50 text-indigo-600 flex items-center justify-center text-xs font-bold mr-3">
-                          {i + 1}
-                        </div>
-                        <div>
-                          <div className="font-medium">Batch-202510-{100 + i}</div>
-                          <div className="text-xs text-slate-500">生产线 #{i % 4 + 1}</div>
-                        </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600 font-mono">
-                    {Math.floor(Math.random() * 5000) + 500}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-xs">
-                     {Math.random() > 0.5 ? (
-                       <span className="text-green-600 flex items-center">
-                         <TrendingUp size={12} className="mr-1" /> +{(Math.random() * 5).toFixed(2)}%
-                       </span>
-                     ) : (
-                       <span className="text-slate-400">--</span>
-                     )}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
-                    {['韦晓敏', '阳泽华', '尤通', '系统自动'][i % 4]}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-teal-600 cursor-pointer hover:underline">查看详情</td>
-                </tr>
-              ))}
+              {Array.from({ length: 15 }).map((_, i) => {
+                const row = generateRowData(i);
+                return (
+                  <tr key={i} className="hover:bg-slate-50 transition-colors">
+                    {row.map((cell, cIdx) => (
+                      <td key={cIdx} className="px-6 py-4 whitespace-nowrap text-sm text-slate-700">
+                        {cell}
+                      </td>
+                    ))}
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
+        </div>
+        <div className="p-4 border-t border-slate-200 bg-slate-50 flex justify-between items-center">
+           <span className="text-sm text-slate-500">共 15 条记录</span>
+           <div className="flex space-x-2">
+             <button className="px-3 py-1 border rounded bg-white text-sm hover:bg-slate-50">上一页</button>
+             <button className="px-3 py-1 border rounded bg-white text-sm hover:bg-slate-50">下一页</button>
+           </div>
         </div>
       </div>
     </div>
@@ -111,11 +158,11 @@ const DetailModal = ({ isOpen, onClose, title }: any) => {
 };
 
 export const Dashboard: React.FC = () => {
-  const [detailModal, setDetailModal] = useState<{open: boolean, title: string}>({ open: false, title: '' });
+  const [detailModal, setDetailModal] = useState<{open: boolean, title: string, type: 'prod' | 'inv' | 'qc' | 'risk'}>({ open: false, title: '', type: 'prod' });
   const [dateRangeOption, setDateRangeOption] = useState('7days');
   const [chartData, setChartData] = useState(generateTrendData(6)); // Default 7 days (0-6)
 
-  const openModal = (title: string) => setDetailModal({ open: true, title });
+  const openModal = (title: string, type: 'prod' | 'inv' | 'qc' | 'risk') => setDetailModal({ open: true, title, type });
 
   // Update chart data when date range changes
   useEffect(() => {
@@ -139,6 +186,7 @@ export const Dashboard: React.FC = () => {
       <DetailModal 
         isOpen={detailModal.open} 
         title={detailModal.title} 
+        type={detailModal.type}
         onClose={() => setDetailModal({ ...detailModal, open: false })} 
       />
 
@@ -161,7 +209,7 @@ export const Dashboard: React.FC = () => {
           subtext="+12% 较昨日" 
           icon={Activity} 
           color="bg-blue-500" 
-          onClick={() => openModal('生产批次统计')}
+          onClick={() => openModal('生产批次统计', 'prod')}
         />
         <StatCard 
           title="库存周转率" 
@@ -169,7 +217,7 @@ export const Dashboard: React.FC = () => {
           subtext="运转高效" 
           icon={TrendingUp} 
           color="bg-teal-500" 
-          onClick={() => openModal('库存周转明细')}
+          onClick={() => openModal('库存周转明细', 'inv')}
         />
         <StatCard 
           title="待检产品" 
@@ -177,7 +225,7 @@ export const Dashboard: React.FC = () => {
           subtext="需优先处理" 
           icon={PackageCheck} 
           color="bg-orange-500" 
-          onClick={() => openModal('质检任务列表')}
+          onClick={() => openModal('质检任务列表', 'qc')}
         />
         <StatCard 
           title="风险预警" 
@@ -185,7 +233,7 @@ export const Dashboard: React.FC = () => {
           subtext="环境温度异常" 
           icon={AlertTriangle} 
           color="bg-red-500" 
-          onClick={() => openModal('风险预警日志')}
+          onClick={() => openModal('风险预警日志', 'risk')}
         />
       </div>
 

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../AuthContext';
 import { 
   LayoutDashboard, 
   FileInput, 
@@ -19,6 +20,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
+  const { user, logout } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -41,6 +43,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleLogout = () => {
+    setShowUserMenu(false);
+    logout();
+  };
+
+  const handleSwitchAccount = () => {
+    setShowUserMenu(false);
+    logout(); // In a simple system, switching account is essentially logging out to login page
+  };
+
+  if (!user) return null;
 
   return (
     <>
@@ -91,16 +105,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
 
         <div className="absolute bottom-0 left-0 w-full bg-slate-900 border-t border-slate-800">
            {showUserMenu && (
-             <div ref={userMenuRef} className="absolute bottom-full left-4 right-4 mb-2 bg-slate-800 rounded-lg shadow-xl border border-slate-700 overflow-hidden animate-fade-in">
+             <div ref={userMenuRef} className="absolute bottom-full left-4 right-4 mb-2 bg-slate-800 rounded-lg shadow-xl border border-slate-700 overflow-hidden animate-fade-in z-50">
                 <button 
                   className="w-full text-left px-4 py-3 text-sm text-slate-300 hover:bg-slate-700 hover:text-white flex items-center"
-                  onClick={() => setShowUserMenu(false)}
+                  onClick={handleSwitchAccount}
                 >
                   <Users size={16} className="mr-2" /> 切换账号
                 </button>
                 <button 
                   className="w-full text-left px-4 py-3 text-sm text-red-400 hover:bg-slate-700 hover:text-red-300 flex items-center border-t border-slate-700"
-                  onClick={() => setShowUserMenu(false)}
+                  onClick={handleLogout}
                 >
                   <LogOut size={16} className="mr-2" /> 退出系统
                 </button>
@@ -111,13 +125,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen, setIsOpen }) => {
             onClick={() => setShowUserMenu(!showUserMenu)}
           >
             <img
-              className="h-9 w-9 rounded-full border border-slate-600"
-              src="https://picsum.photos/100/100"
-              alt="User"
+              className="h-9 w-9 rounded-full border border-slate-600 object-cover"
+              src={user.avatar}
+              alt={user.name}
             />
-            <div className="ml-3">
-              <p className="text-sm font-medium text-white">韦晓敏</p>
-              <p className="text-xs text-slate-400">项目联系人</p>
+            <div className="ml-3 overflow-hidden">
+              <p className="text-sm font-medium text-white truncate">{user.name}</p>
+              <p className="text-xs text-slate-400 truncate max-w-[140px]">{user.department}</p>
             </div>
           </div>
         </div>

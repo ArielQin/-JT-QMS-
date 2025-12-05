@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { InventoryItem, InventoryCategory } from '../types';
-import { Package, Plus, Minus, Filter, AlertCircle, ArrowUpDown, X, Search, Image as ImageIcon, ScanLine } from 'lucide-react';
+import { Package, Plus, Minus, Filter, AlertCircle, ArrowUpDown, X, Search, Image as ImageIcon, ScanLine, Loader2 } from 'lucide-react';
 
-// Enhanced Mock Data - Massive Expansion
+// Enhanced Mock Data - Massive Expansion (30+ items)
 const initialInventory: InventoryItem[] = [
   { id: '1', drugName: '复方金银花颗粒', image: 'https://placehold.co/60x60/e2e8f0/64748b?text=JYH', category: '中成药', batchNumber: '20251012-A001', manufacturer: '姣恬制药', specification: '10g*10袋', quantity: 2450, unit: '盒', price: 28.5, expiryDate: '2026-10-12', inboundDate: '2025-10-12', status: 'Normal', location: 'A-01-02' },
   { id: '2', drugName: '感冒灵胶囊', image: 'https://placehold.co/60x60/e2e8f0/64748b?text=GML', category: '中成药', batchNumber: '20250915-B022', manufacturer: '姣恬制药', specification: '0.5g*24粒', quantity: 120, unit: '盒', price: 15.0, expiryDate: '2026-09-15', inboundDate: '2025-09-20', status: 'LowStock', location: 'A-02-05' },
@@ -24,6 +24,17 @@ const initialInventory: InventoryItem[] = [
   { id: '18', drugName: '头孢拉定胶囊', image: 'https://placehold.co/60x60/e2e8f0/64748b?text=TFLD', category: '化学药', batchNumber: '20250720-T002', manufacturer: '国药集团', specification: '0.25g*24粒', quantity: 50, unit: '盒', price: 22.5, expiryDate: '2027-07-20', inboundDate: '2025-07-25', status: 'LowStock', location: 'A-06-01' },
   { id: '19', drugName: '碘伏消毒液', image: 'https://placehold.co/60x60/e2e8f0/64748b?text=DF', category: '消毒用品', batchNumber: '20250830-I001', manufacturer: '安洁', specification: '100ml/瓶', quantity: 300, unit: '瓶', price: 5.5, expiryDate: '2027-08-30', inboundDate: '2025-09-01', status: 'Normal', location: 'C-03-02' },
   { id: '20', drugName: '铝箔 (PTP)', image: 'https://placehold.co/60x60/e2e8f0/64748b?text=ALU', category: '包装材料', batchNumber: '20250815-P003', manufacturer: '铝业股份', specification: '250mm', quantity: 2000, unit: 'kg', price: 25.0, expiryDate: '2030-08-15', inboundDate: '2025-08-20', status: 'Normal', location: 'D-01-02' },
+  // Adding more items for "Massive Data" requirement
+  { id: '21', drugName: '硝苯地平控释片', image: '', category: '化学药', batchNumber: '20250505-X009', manufacturer: '拜耳医药', specification: '30mg*7片', quantity: 1500, unit: '盒', price: 35.5, expiryDate: '2028-05-05', inboundDate: '2025-05-10', status: 'Normal', location: 'A-07-01' },
+  { id: '22', drugName: '六味地黄丸', image: '', category: '中成药', batchNumber: '20250420-L008', manufacturer: '宛西制药', specification: '200丸/瓶', quantity: 800, unit: '瓶', price: 12.0, expiryDate: '2028-04-20', inboundDate: '2025-04-25', status: 'Normal', location: 'B-05-01' },
+  { id: '23', drugName: '一次性使用输液器', image: '', category: '医疗器械', batchNumber: '20251010-S005', manufacturer: '威高集团', specification: '带针', quantity: 5000, unit: '支', price: 1.5, expiryDate: '2027-10-10', inboundDate: '2025-10-11', status: 'Normal', location: 'C-05-01' },
+  { id: '24', drugName: '红霉素软膏', image: '', category: '化学药', batchNumber: '20250601-H002', manufacturer: '白云山', specification: '10g/支', quantity: 3000, unit: '支', price: 2.5, expiryDate: '2028-06-01', inboundDate: '2025-06-05', status: 'Normal', location: 'A-08-01' },
+  { id: '25', drugName: '枸杞子', image: '', category: '中药饮片', batchNumber: '20250901-G003', manufacturer: '宁夏红', specification: '500g/袋', quantity: 150, unit: '袋', price: 45.0, expiryDate: '2026-09-01', inboundDate: '2025-09-05', status: 'LowStock', location: 'B-06-01' },
+  { id: '26', drugName: '葡萄糖注射液', image: '', category: '化学药', batchNumber: '20251001-P005', manufacturer: '科伦药业', specification: '500ml', quantity: 1000, unit: '瓶', price: 4.0, expiryDate: '2027-10-01', inboundDate: '2025-10-05', status: 'Normal', location: 'A-09-01' },
+  { id: '27', drugName: '医用棉签', image: '', category: '医疗器械', batchNumber: '20250815-M004', manufacturer: '稳健医疗', specification: '50支/包', quantity: 2000, unit: '包', price: 3.0, expiryDate: '2027-08-15', inboundDate: '2025-08-20', status: 'Normal', location: 'C-06-01' },
+  { id: '28', drugName: '75%乙醇消毒液', image: '', category: '消毒用品', batchNumber: '20250910-Y002', manufacturer: '利康', specification: '500ml/瓶', quantity: 600, unit: '瓶', price: 7.5, expiryDate: '2027-09-10', inboundDate: '2025-09-15', status: 'Normal', location: 'C-03-03' },
+  { id: '29', drugName: '藿香正气水', image: '', category: '中成药', batchNumber: '20250705-H006', manufacturer: '太极集团', specification: '10ml*10支', quantity: 1200, unit: '盒', price: 18.0, expiryDate: '2027-07-05', inboundDate: '2025-07-10', status: 'Normal', location: 'B-07-01' },
+  { id: '30', drugName: '微晶纤维素', image: '', category: '辅料', batchNumber: '20250515-W001', manufacturer: '辅料科技', specification: '20kg/桶', quantity: 40, unit: '桶', price: 350.0, expiryDate: '2027-05-15', inboundDate: '2025-05-20', status: 'Normal', location: 'D-03-01' },
 ];
 
 const StockModal = ({ isOpen, type, onClose, onSubmit, items }: any) => {
@@ -31,13 +42,18 @@ const StockModal = ({ isOpen, type, onClose, onSubmit, items }: any) => {
   const [quantity, setQuantity] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (selectedId && quantity) {
+      setIsProcessing(true);
+      // Simulate network delay for realism
+      await new Promise(resolve => setTimeout(resolve, 600));
       onSubmit(selectedId, parseInt(quantity));
+      setIsProcessing(false);
       onClose();
       resetForm();
     }
@@ -121,7 +137,12 @@ const StockModal = ({ isOpen, type, onClose, onSubmit, items }: any) => {
           </div>
           <div className="flex justify-end space-x-3 mt-6">
             <button type="button" onClick={onClose} className="px-4 py-2 border rounded-md text-slate-600 hover:bg-slate-50">取消</button>
-            <button type="submit" disabled={!selectedId} className={`px-4 py-2 rounded-md text-white ${type === 'in' ? 'bg-teal-600 hover:bg-teal-700' : 'bg-red-600 hover:bg-red-700'} disabled:opacity-50 disabled:cursor-not-allowed`}>
+            <button 
+                type="submit" 
+                disabled={!selectedId || isProcessing} 
+                className={`px-4 py-2 rounded-md text-white flex items-center ${type === 'in' ? 'bg-teal-600 hover:bg-teal-700' : 'bg-red-600 hover:bg-red-700'} disabled:opacity-50 disabled:cursor-not-allowed`}
+            >
+              {isProcessing && <Loader2 size={14} className="mr-2 animate-spin" />}
               确认{type === 'in' ? '入库' : '出库'}
             </button>
           </div>

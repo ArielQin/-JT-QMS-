@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { HashRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './AuthContext';
 import { Sidebar } from './components/Sidebar';
 import { Dashboard } from './pages/Dashboard';
 import { DataEntry } from './pages/DataEntry';
@@ -7,13 +8,18 @@ import { Traceability } from './pages/Traceability';
 import { Inventory } from './pages/Inventory';
 import { SecurityLogs } from './pages/SecurityLogs';
 import { RiskAnalysis } from './pages/RiskAnalysis';
+import { Login } from './pages/Login';
 import { Menu } from 'lucide-react';
 
-const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+const ProtectedLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
+  // If not logged in, show Login page (this is handled in AppContent, but double check)
+  if (!user) return <Login />;
+
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden">
+    <div className="flex h-screen bg-slate-50 overflow-hidden animate-fade-in">
       <Sidebar isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
       
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -41,10 +47,16 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   );
 };
 
-export default function App() {
+const AppContent: React.FC = () => {
+  const { user } = useAuth();
+
+  if (!user) {
+    return <Login />;
+  }
+
   return (
     <Router>
-      <Layout>
+      <ProtectedLayout>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/data-entry" element={<DataEntry />} />
@@ -54,7 +66,15 @@ export default function App() {
           <Route path="/security-logs" element={<SecurityLogs />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </Layout>
+      </ProtectedLayout>
     </Router>
+  );
+};
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }

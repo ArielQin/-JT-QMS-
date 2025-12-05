@@ -1,9 +1,9 @@
-
 import React, { useState } from 'react';
 import { Stage, InputMode } from '../types';
-import { Camera, Scan, Save, RefreshCw, Settings, Wifi, QrCode, Database, Clock } from 'lucide-react';
+import { useAuth } from '../AuthContext';
+import { Camera, Scan, Save, RefreshCw, Settings, Wifi, QrCode, Database, Clock, Check, X, Loader2 } from 'lucide-react';
 
-const historyData = [
+const initialHistoryData = [
   { id: '1', time: '14:30', stage: '产品采购', batch: '20251012-A001', operator: '韦晓敏', status: 'Success' },
   { id: '2', time: '14:15', stage: '生产加工', batch: '20251012-P005', operator: '阳泽华', status: 'Success' },
   { id: '3', time: '11:20', stage: '仓储物流', batch: '20251011-W002', operator: '系统自动', status: 'Pending' },
@@ -12,9 +12,22 @@ const historyData = [
 ];
 
 export const DataEntry: React.FC = () => {
+  const { user } = useAuth();
   const [activeStage, setActiveStage] = useState<Stage>(Stage.RawMaterial);
   const [inputMode, setInputMode] = useState<InputMode>(InputMode.Manual);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
+  const [historyData, setHistoryData] = useState(initialHistoryData);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [scannerConfigOpen, setScannerConfigOpen] = useState(false);
+  const [scannerLoading, setScannerLoading] = useState(false);
+  const [toast, setToast] = useState<{msg: string, type: 'success' | 'info'} | null>(null);
+
+  // Form State
+  const [formData, setFormData] = useState<Record<string, any>>({});
+
+  const handleInputChange = (key: string, value: any) => {
+    setFormData(prev => ({ ...prev, [key]: value }));
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -27,8 +40,69 @@ export const DataEntry: React.FC = () => {
     }
   };
 
+  const showToast = (msg: string, type: 'success' | 'info' = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  const handleSubmit = async () => {
+    setIsSubmitting(true);
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 800));
+
+    // Create new record
+    const newRecord = {
+      id: Date.now().toString(),
+      time: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
+      stage: activeStage,
+      batch: formData['batchNumber'] || formData['productBatch'] || `AUTO-${Math.floor(Math.random()*1000)}`,
+      operator: user?.name || '未知',
+      status: 'Success'
+    };
+
+    setHistoryData(prev => [newRecord, ...prev]);
+    setIsSubmitting(false);
+    setFormData({}); // Reset form
+    setPreviewImage(null);
+    showToast('数据提交成功！已写入区块链存证。');
+  };
+
+  // Scanner interactions
+  const handleScannerTest = () => {
+    showToast('哔！Scanner Input Received: 20251012-TEST01', 'info');
+  };
+
+  const handleScannerRefresh = () => {
+    setScannerLoading(true);
+    setTimeout(() => {
+        setScannerLoading(false);
+        showToast('设备刷新完成，发现 2 台可用设备', 'success');
+    }, 1500);
+  };
+
   const renderScannerInterface = () => (
-    <div className="bg-white p-8 rounded-xl border border-slate-200 text-center animate-fade-in">
+    <div className="bg-white p-8 rounded-xl border border-slate-200 text-center animate-fade-in relative">
+      {scannerConfigOpen && (
+          <div className="absolute inset-0 z-10 bg-white/90 backdrop-blur-sm flex items-center justify-center rounded-xl">
+             <div className="bg-white p-6 rounded-lg shadow-xl border border-slate-200 w-80 text-left">
+                 <h4 className="font-bold text-lg mb-4">驱动配置</h4>
+                 <div className="space-y-3">
+                     <div>
+                         <label className="text-xs text-slate-500 block">Baud Rate</label>
+                         <select className="w-full border rounded p-1 text-sm"><option>9600</option><option>115200</option></select>
+                     </div>
+                     <div>
+                         <label className="text-xs text-slate-500 block">Prefix Char</label>
+                         <input type="text" className="w-full border rounded p-1 text-sm" defaultValue="STX" />
+                     </div>
+                     <div className="flex justify-end pt-2">
+                         <button onClick={() => setScannerConfigOpen(false)} className="px-3 py-1 bg-teal-600 text-white rounded text-sm">保存</button>
+                     </div>
+                 </div>
+             </div>
+          </div>
+      )}
+
       <div className="mx-auto w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mb-4">
         <Scan size={32} className="text-blue-600" />
       </div>
@@ -45,8 +119,8 @@ export const DataEntry: React.FC = () => {
              </div>
            </div>
            <div className="flex space-x-2">
-            <button className="text-xs bg-white border border-slate-300 px-3 py-1 rounded text-slate-600">测试</button>
-            <button className="text-xs bg-teal-50 border border-teal-200 px-3 py-1 rounded text-teal-700">配置</button>
+            <button onClick={handleScannerTest} className="text-xs bg-white border border-slate-300 px-3 py-1 rounded text-slate-600 hover:bg-slate-50">测试</button>
+            <button onClick={() => setScannerConfigOpen(true)} className="text-xs bg-teal-50 border border-teal-200 px-3 py-1 rounded text-teal-700 hover:bg-teal-100">配置</button>
            </div>
         </div>
         <div className="flex items-center justify-between p-4 border border-slate-200 rounded-lg bg-slate-50 opacity-60">
@@ -57,15 +131,20 @@ export const DataEntry: React.FC = () => {
                <div className="text-xs text-slate-500">Status: Disconnected | MAC: 00:11:22:33:44:55</div>
              </div>
            </div>
-           <button className="text-xs bg-white border border-slate-300 px-3 py-1 rounded text-slate-600">连接</button>
+           <button className="text-xs bg-white border border-slate-300 px-3 py-1 rounded text-slate-600 cursor-not-allowed">连接</button>
         </div>
       </div>
       
       <div className="mt-8 pt-6 border-t border-slate-100 flex justify-center space-x-4">
-        <button className="flex items-center px-4 py-2 bg-teal-600 text-white rounded-md text-sm hover:bg-teal-700">
-           <RefreshCw size={14} className="mr-2" /> 刷新设备列表
+        <button 
+            onClick={handleScannerRefresh} 
+            disabled={scannerLoading}
+            className="flex items-center px-4 py-2 bg-teal-600 text-white rounded-md text-sm hover:bg-teal-700 disabled:opacity-70"
+        >
+           {scannerLoading ? <Loader2 size={14} className="mr-2 animate-spin"/> : <RefreshCw size={14} className="mr-2" />}
+           {scannerLoading ? '扫描中...' : '刷新设备列表'}
         </button>
-        <button className="flex items-center px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-md text-sm hover:bg-slate-50">
+        <button onClick={() => showToast('驱动程序已是最新版本 (v2.4.1)', 'info')} className="flex items-center px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-md text-sm hover:bg-slate-50">
            <Settings size={14} className="mr-2" /> 驱动设置
         </button>
       </div>
@@ -74,8 +153,11 @@ export const DataEntry: React.FC = () => {
 
   const renderMobileInterface = () => (
     <div className="bg-white p-8 rounded-xl border border-slate-200 flex flex-col items-center animate-fade-in">
-       <div className="p-4 bg-white border-2 border-slate-900 rounded-xl mb-6 shadow-lg">
+       <div className="p-4 bg-white border-2 border-slate-900 rounded-xl mb-6 shadow-lg relative group cursor-pointer" onClick={() => showToast('模拟：移动端已连接并同步数据', 'success')}>
          <QrCode size={160} className="text-slate-900" />
+         <div className="absolute inset-0 bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+            <span className="text-sm font-bold text-slate-900">点击模拟扫码</span>
+         </div>
        </div>
        <h3 className="text-lg font-bold text-slate-900 mb-2">移动端数据同步管理</h3>
        <p className="text-sm text-slate-500 text-center max-w-md mb-6">
@@ -110,7 +192,8 @@ export const DataEntry: React.FC = () => {
             <div className="md:col-span-3 pb-2 mb-2 border-b border-slate-100 font-semibold text-slate-800">产品与供应商信息</div>
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">产品类型</label>
-              <select className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 sm:text-sm border p-2.5 bg-white">
+              <select onChange={e => handleInputChange('productType', e.target.value)} value={formData['productType'] || ''} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 sm:text-sm border p-2.5 bg-white">
+                <option value="">请选择...</option>
                 <option>成品 (Finished Product)</option>
                 <option>半成品 (Semi-finished)</option>
                 <option>原料 (Raw Material)</option>
@@ -119,23 +202,23 @@ export const DataEntry: React.FC = () => {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">产品/原料名称</label>
-              <input type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" placeholder="如: 金银花 / 复方金银花颗粒" />
+              <input onChange={e => handleInputChange('productName', e.target.value)} value={formData['productName'] || ''} type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" placeholder="如: 金银花 / 复方金银花颗粒" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">供应商全称</label>
-              <input type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" placeholder="供应商标准全称" />
+              <input onChange={e => handleInputChange('supplierName', e.target.value)} value={formData['supplierName'] || ''} type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" placeholder="供应商标准全称" />
             </div>
 
             <div className="md:col-span-3 pb-2 mb-2 border-b border-slate-100 font-semibold text-slate-800 mt-4">质检与合规</div>
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">供应商批号 (Supplier Batch)</label>
-              <input type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
+              <input onChange={e => handleInputChange('batchNumber', e.target.value)} value={formData['batchNumber'] || ''} type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">采购数量 & 单位</label>
               <div className="flex gap-2">
-                <input type="number" className="mt-1 block w-2/3 rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" placeholder="0.00" />
-                <select className="mt-1 block w-1/3 rounded-md border-slate-300 shadow-sm focus:border-teal-500 sm:text-sm border bg-white p-2">
+                <input onChange={e => handleInputChange('quantity', e.target.value)} value={formData['quantity'] || ''} type="number" className="mt-1 block w-2/3 rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" placeholder="0.00" />
+                <select onChange={e => handleInputChange('unit', e.target.value)} value={formData['unit'] || 'kg'} className="mt-1 block w-1/3 rounded-md border-slate-300 shadow-sm focus:border-teal-500 sm:text-sm border bg-white p-2">
                   <option>kg</option>
                   <option>g</option>
                   <option>mg</option>
@@ -151,15 +234,15 @@ export const DataEntry: React.FC = () => {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">产地 / 来源地</label>
-              <input type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" placeholder="省/市/县/基地" />
+              <input onChange={e => handleInputChange('origin', e.target.value)} value={formData['origin'] || ''} type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" placeholder="省/市/县/基地" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">GMP 证书编号</label>
-              <input type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
+              <input onChange={e => handleInputChange('gmpCode', e.target.value)} value={formData['gmpCode'] || ''} type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">质检报告单号 (COA)</label>
-              <input type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
+              <input onChange={e => handleInputChange('coaCode', e.target.value)} value={formData['coaCode'] || ''} type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
             </div>
           </div>
         );
@@ -169,19 +252,19 @@ export const DataEntry: React.FC = () => {
              <div className="md:col-span-3 pb-2 mb-2 border-b border-slate-100 font-semibold text-slate-800">生产排程与对象</div>
              <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">加工产品名称</label>
-              <input type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" placeholder="正在生产的产品名称" />
+              <input onChange={e => handleInputChange('prodName', e.target.value)} value={formData['prodName'] || ''} type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" placeholder="正在生产的产品名称" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">生产任务单号</label>
-              <input type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
+              <input onChange={e => handleInputChange('taskCode', e.target.value)} value={formData['taskCode'] || ''} type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">成品批号 (Product Batch)</label>
-              <input type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
+              <input onChange={e => handleInputChange('productBatch', e.target.value)} value={formData['productBatch'] || ''} type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">生产线 / 机台</label>
-              <select className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 sm:text-sm border p-2.5 bg-white">
+              <select onChange={e => handleInputChange('line', e.target.value)} value={formData['line'] || ''} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 sm:text-sm border p-2.5 bg-white">
                 <option>Line A-01 (提取)</option>
                 <option>Line A-02 (浓缩)</option>
                 <option>Line B-01 (制剂)</option>
@@ -194,8 +277,8 @@ export const DataEntry: React.FC = () => {
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">计划产量 & 单位</label>
               <div className="flex gap-2">
-                <input type="number" className="mt-1 block w-2/3 rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" placeholder="0.00" />
-                <select className="mt-1 block w-1/3 rounded-md border-slate-300 shadow-sm focus:border-teal-500 sm:text-sm border bg-white p-2">
+                <input onChange={e => handleInputChange('planQty', e.target.value)} value={formData['planQty'] || ''} type="number" className="mt-1 block w-2/3 rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" placeholder="0.00" />
+                <select onChange={e => handleInputChange('unit', e.target.value)} value={formData['unit'] || '盒'} className="mt-1 block w-1/3 rounded-md border-slate-300 shadow-sm focus:border-teal-500 sm:text-sm border bg-white p-2">
                   <option>盒</option>
                   <option>瓶</option>
                   <option>袋</option>
@@ -209,11 +292,11 @@ export const DataEntry: React.FC = () => {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">灭菌温度 (°C)</label>
-              <input type="number" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" placeholder="121.0" />
+              <input onChange={e => handleInputChange('temp', e.target.value)} value={formData['temp'] || ''} type="number" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" placeholder="121.0" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">灭菌时间 (min)</label>
-              <input type="number" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
+              <input onChange={e => handleInputChange('time', e.target.value)} value={formData['time'] || ''} type="number" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
             </div>
           </div>
         );
@@ -223,21 +306,21 @@ export const DataEntry: React.FC = () => {
              <div className="md:col-span-3 pb-2 mb-2 border-b border-slate-100 font-semibold text-slate-800">入库/出库对象</div>
              <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">产品/货物名称</label>
-              <input type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" placeholder="入库或出库的产品" />
+              <input onChange={e => handleInputChange('prodName', e.target.value)} value={formData['prodName'] || ''} type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" placeholder="入库或出库的产品" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">产品批号</label>
-              <input type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
+              <input onChange={e => handleInputChange('batchNumber', e.target.value)} value={formData['batchNumber'] || ''} type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
             </div>
              <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">入库/出库单号</label>
-              <input type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
+              <input onChange={e => handleInputChange('orderCode', e.target.value)} value={formData['orderCode'] || ''} type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
             </div>
             
             <div className="md:col-span-3 pb-2 mb-2 border-b border-slate-100 font-semibold text-slate-800 mt-4">位置与物流信息</div>
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">仓库区域</label>
-              <select className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 sm:text-sm border p-2.5 bg-white">
+              <select onChange={e => handleInputChange('zone', e.target.value)} value={formData['zone'] || ''} className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 sm:text-sm border p-2.5 bg-white">
                 <option>A区 (常温库)</option>
                 <option>B区 (阴凉库)</option>
                 <option>C区 (冷库)</option>
@@ -246,13 +329,13 @@ export const DataEntry: React.FC = () => {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">货位编号</label>
-              <input type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" placeholder="例如: A-01-02-05" />
+              <input onChange={e => handleInputChange('locationCode', e.target.value)} value={formData['locationCode'] || ''} type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" placeholder="例如: A-01-02-05" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">操作数量 & 单位</label>
                <div className="flex gap-2">
-                <input type="number" className="mt-1 block w-2/3 rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" placeholder="0.00" />
-                <select className="mt-1 block w-1/3 rounded-md border-slate-300 shadow-sm focus:border-teal-500 sm:text-sm border bg-white p-2">
+                <input onChange={e => handleInputChange('quantity', e.target.value)} value={formData['quantity'] || ''} type="number" className="mt-1 block w-2/3 rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" placeholder="0.00" />
+                <select onChange={e => handleInputChange('unit', e.target.value)} value={formData['unit'] || '件'} className="mt-1 block w-1/3 rounded-md border-slate-300 shadow-sm focus:border-teal-500 sm:text-sm border bg-white p-2">
                    <option>件</option>
                   <option>盒</option>
                   <option>瓶</option>
@@ -265,7 +348,7 @@ export const DataEntry: React.FC = () => {
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">物流承运商</label>
-              <input type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" placeholder="如: 顺丰冷运" />
+              <input onChange={e => handleInputChange('logistics', e.target.value)} value={formData['logistics'] || ''} type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" placeholder="如: 顺丰冷运" />
             </div>
           </div>
          );
@@ -275,31 +358,31 @@ export const DataEntry: React.FC = () => {
              <div className="md:col-span-3 pb-2 mb-2 border-b border-slate-100 font-semibold text-slate-800">销售明细</div>
              <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">销售产品名称</label>
-              <input type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
+              <input onChange={e => handleInputChange('prodName', e.target.value)} value={formData['prodName'] || ''} type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">产品批号</label>
-              <input type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
+              <input onChange={e => handleInputChange('batchNumber', e.target.value)} value={formData['batchNumber'] || ''} type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
             </div>
              <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">销售出库单号</label>
-              <input type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
+              <input onChange={e => handleInputChange('saleCode', e.target.value)} value={formData['saleCode'] || ''} type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
             </div>
             
             <div className="md:col-span-3 pb-2 mb-2 border-b border-slate-100 font-semibold text-slate-800 mt-4">终端去向</div>
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">销售终端 / 药房名称</label>
-              <input type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
+              <input onChange={e => handleInputChange('pharmacy', e.target.value)} value={formData['pharmacy'] || ''} type="text" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">销售日期</label>
-              <input type="date" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
+              <input onChange={e => handleInputChange('date', e.target.value)} value={formData['date'] || ''} type="date" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
             </div>
              <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">销售数量</label>
                <div className="flex gap-2">
-                <input type="number" className="mt-1 block w-2/3 rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" placeholder="0.00" />
-                <select className="mt-1 block w-1/3 rounded-md border-slate-300 shadow-sm focus:border-teal-500 sm:text-sm border bg-white p-2">
+                <input onChange={e => handleInputChange('qty', e.target.value)} value={formData['qty'] || ''} type="number" className="mt-1 block w-2/3 rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" placeholder="0.00" />
+                <select onChange={e => handleInputChange('unit', e.target.value)} value={formData['unit'] || '盒'} className="mt-1 block w-1/3 rounded-md border-slate-300 shadow-sm focus:border-teal-500 sm:text-sm border bg-white p-2">
                   <option>盒</option>
                   <option>瓶</option>
                   <option>袋</option>
@@ -309,7 +392,7 @@ export const DataEntry: React.FC = () => {
             </div>
              <div>
               <label className="block text-xs font-medium text-slate-500 uppercase">单价 (CNY)</label>
-              <input type="number" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
+              <input onChange={e => handleInputChange('price', e.target.value)} value={formData['price'] || ''} type="number" className="mt-1 block w-full rounded-md border-slate-300 shadow-sm focus:border-teal-500 focus:ring-teal-500 sm:text-sm border p-2.5" />
             </div>
           </div>
          );
@@ -320,6 +403,15 @@ export const DataEntry: React.FC = () => {
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
+      {toast && (
+        <div className={`fixed top-4 right-4 z-50 px-6 py-3 rounded-lg shadow-lg text-white animate-fade-in ${toast.type === 'success' ? 'bg-teal-600' : 'bg-blue-600'}`}>
+           <div className="flex items-center">
+             {toast.type === 'success' ? <Check size={18} className="mr-2" /> : <Scan size={18} className="mr-2" />}
+             {toast.msg}
+           </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">数据采集与录入</h1>
         <div className="flex bg-slate-200 rounded-lg p-1">
@@ -357,7 +449,7 @@ export const DataEntry: React.FC = () => {
                 {Object.values(Stage).map((stage) => (
                   <button
                     key={stage}
-                    onClick={() => setActiveStage(stage)}
+                    onClick={() => { setActiveStage(stage); setFormData({}); }}
                     className={`flex-1 py-4 px-6 text-sm font-medium whitespace-nowrap border-b-2 transition-colors ${
                       activeStage === stage
                         ? 'border-teal-500 text-teal-600 bg-white'
@@ -388,7 +480,12 @@ export const DataEntry: React.FC = () => {
                     <div className="space-y-1 text-center">
                       <div className="flex justify-center text-slate-400">
                         {previewImage ? (
-                          <img src={previewImage} alt="Preview" className="h-32 object-contain" />
+                          <div className="relative group">
+                              <img src={previewImage} alt="Preview" className="h-32 object-contain" />
+                              <button onClick={() => setPreviewImage(null)} className="absolute top-0 right-0 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <X size={12} />
+                              </button>
+                          </div>
                         ) : (
                           <Camera size={48} strokeWidth={1} />
                         )}
@@ -425,13 +522,20 @@ export const DataEntry: React.FC = () => {
 
               {/* Actions */}
               <div className="flex items-center justify-end space-x-4 border-t border-slate-100 pt-6">
-                <button className="flex items-center px-4 py-2 border border-slate-300 rounded-md shadow-sm text-sm font-medium text-slate-700 bg-white hover:bg-slate-50">
+                <button 
+                  onClick={() => { setFormData({}); setPreviewImage(null); }}
+                  className="flex items-center px-4 py-2 border border-slate-300 rounded-md shadow-sm text-sm font-medium text-slate-700 bg-white hover:bg-slate-50"
+                >
                   <RefreshCw size={16} className="mr-2" />
                   重置
                 </button>
-                <button className="flex items-center px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500">
-                  <Save size={16} className="mr-2" />
-                  提交数据
+                <button 
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                  className={`flex items-center px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 ${isSubmitting ? 'opacity-70 cursor-wait' : ''}`}
+                >
+                  {isSubmitting ? <Loader2 size={16} className="mr-2 animate-spin" /> : <Save size={16} className="mr-2" />}
+                  {isSubmitting ? '提交中...' : '提交数据'}
                 </button>
               </div>
             </div>
@@ -444,7 +548,7 @@ export const DataEntry: React.FC = () => {
                   <Clock size={16} className="mr-2 text-slate-500" />
                   今日录入明细
                 </h3>
-                <span className="text-xs text-slate-500">共 5 条记录</span>
+                <span className="text-xs text-slate-500">共 {historyData.length} 条记录</span>
              </div>
              <table className="min-w-full divide-y divide-slate-200">
                <thead className="bg-slate-50">
@@ -458,7 +562,7 @@ export const DataEntry: React.FC = () => {
                </thead>
                <tbody className="bg-white divide-y divide-slate-200">
                  {historyData.map(item => (
-                   <tr key={item.id} className="hover:bg-slate-50">
+                   <tr key={item.id} className="hover:bg-slate-50 animate-fade-in">
                      <td className="px-6 py-3 whitespace-nowrap text-sm text-slate-900">{item.time}</td>
                      <td className="px-6 py-3 whitespace-nowrap text-sm text-slate-600">{item.stage}</td>
                      <td className="px-6 py-3 whitespace-nowrap text-sm font-mono text-slate-600">{item.batch}</td>

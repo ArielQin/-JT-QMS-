@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar, ResponsiveContainer,
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, LabelList
@@ -81,6 +81,29 @@ export const RiskAnalysis: React.FC = () => {
       setDisplayedDeepDiveData(filtered);
     }
   };
+
+  // Dynamic Summary Calculations
+  const stats = useMemo(() => {
+      if (displayedDeepDiveData.length === 0) return { avg: 0, source: 'None', trend: 'N/A' };
+      
+      const totalScore = displayedDeepDiveData.reduce((acc, curr) => acc + curr.score, 0);
+      const avg = (totalScore / displayedDeepDiveData.length).toFixed(1);
+
+      // Find primary risk source (most frequent dimension in High/Critical risks)
+      const riskCounts: Record<string, number> = {};
+      displayedDeepDiveData.forEach(item => {
+          if (item.riskLevel === 'High' || item.riskLevel === 'Critical') {
+              riskCounts[item.dim] = (riskCounts[item.dim] || 0) + 1;
+          }
+      });
+      const source = Object.keys(riskCounts).length > 0 
+          ? Object.keys(riskCounts).reduce((a, b) => riskCounts[a] > riskCounts[b] ? a : b)
+          : '暂无高风险';
+
+      const trend = Number(avg) > 85 ? '平稳' : Number(avg) > 70 ? '波动' : '恶化';
+
+      return { avg, source, trend };
+  }, [displayedDeepDiveData]);
 
   return (
     <div className="space-y-6">
@@ -230,20 +253,21 @@ export const RiskAnalysis: React.FC = () => {
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                 <div className="p-4 border rounded-lg hover:border-indigo-300 transition-colors bg-indigo-50/30">
                    <div className="text-sm text-slate-500 mb-1">平均风险评分</div>
-                   <div className="text-2xl font-bold text-indigo-700">88.5</div>
-                   <div className="text-xs text-green-600 mt-1">低于行业警戒线 5%</div>
+                   <div className="text-2xl font-bold text-indigo-700">{stats.avg}</div>
+                   <div className="text-xs text-green-600 mt-1">基于当前筛选结果</div>
                 </div>
                 <div className="p-4 border rounded-lg hover:border-indigo-300 transition-colors bg-white">
                    <div className="text-sm text-slate-500 mb-1">主要风险来源</div>
-                   <div className="text-lg font-medium text-slate-800">仓储环境 (湿度)</div>
-                   <div className="text-xs text-slate-400 mt-1">影响 3 个批次</div>
+                   <div className="text-lg font-medium text-slate-800">{stats.source}</div>
+                   <div className="text-xs text-slate-400 mt-1">需重点关注</div>
                 </div>
                 <div className="p-4 border rounded-lg hover:border-indigo-300 transition-colors bg-white">
                    <div className="text-sm text-slate-500 mb-1">AI 预测趋势</div>
                    <div className="text-lg font-medium text-slate-800 flex items-center">
-                     <Activity size={16} className="mr-1 text-yellow-500" />
-                     趋于平稳 (72h)
+                     <Activity size={16} className={`mr-1 ${stats.trend === '平稳' ? 'text-green-500' : 'text-yellow-500'}`} />
+                     {stats.trend}
                    </div>
+                   <div className="text-xs text-slate-400 mt-1">未来 72 小时</div>
                 </div>
              </div>
 

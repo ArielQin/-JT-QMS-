@@ -14,6 +14,16 @@ export enum InputMode {
 
 export type InventoryCategory = '中药饮片' | '中成药' | '化学药' | '医疗器械' | '消毒用品' | '包装材料' | '辅料' | '原料';
 
+export type UserRole = 'Admin' | 'Operator' | 'Auditor';
+
+export interface User {
+  username: string;
+  name: string;
+  role: UserRole;
+  avatar: string;
+  department: string;
+}
+
 export interface InventoryItem {
   id: string;
   drugName: string;
