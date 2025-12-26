@@ -1,6 +1,11 @@
+
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { db } from './db';
+
+// 初始化模拟数据库
+db.init();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
